@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+  <script
+    type="text/javascript"
+    src="qrc:///qtwebchannel/qwebchannel.js"
+  ></script>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+    integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+    crossorigin=""
+  ></script>
+  <style>
+    #mapid {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="mapid"></div>
+</body>
+<script>
+  if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+	  const latitude = position.coords.latitude;
+	  const longitude = position.coords.longitude;
+	  console.log(`Latitude: ${latitude}, Longitude: ${longitude}`);
+      });
+  } else {
+      console.log("Geolocation is not supported by this browser.");
+  }
+  window.onload = function () {
+      var map_manager = null;
+      var map = L.map("mapid").setView([51.3011, 5.272991], 13);
+      if(navigator.geolocation){
+	  navigator.geolocation.getCurrentPosition(function(position){
+	      const lat = position.coords.latitude;
+	      const log = position.coords.longitude;
+	      map.setView([lat,log],13);
+	  });
+      }
+      L.tileLayer(
+	  "https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
+	  {
+              attribution:
+              'Map tiles by \u003ca href="http://stamen.com"\u003eStamen Design\u003c/a\u003e, under \u003ca href="http://creativecommons.org/licenses/by/3.0"\u003eCC BY 3.0\u003c/a\u003e. Data by \u0026copy; \u003ca href="http://openstreetmap.org"\u003eOpenStreetMap\u003c/a\u003e, under \u003ca href="http://creativecommons.org/licenses/by-sa/3.0"\u003eCC BY SA\u003c/a\u003e.',
+	  }).addTo(map);
+      map.on("click", function (e) {
+	  var data = JSON.stringify(e.latlng)
+	  map_manager.receive_data("click", data);
+      });
+      new QWebChannel(qt.webChannelTransport, function (channel) {
+	  map_manager = channel.objects.map_manager;
+	  map.on("move", function (e){
+	      var cen = map.getCenter() //lat-lng
+	      var bounds = map.getBounds() //lat-lng
+	      var zoom = map.getZoom() //pixels
+	      var size = map.getSize() //pixels
+	      var data = JSON.stringify([cen, bounds, size, zoom])
+	      map_manager.receive_data("move", data);
+	  });
+	  map.on("resize", function (e){
+	      var data = JSON.stringify(e.newSize)
+	      map_manager.receive_data("resize", data);
+	  });
+	  // send starting stuff
+	      var cen = map.getCenter() //lat-lng
+	      var bounds = map.getBounds() //lat-lng
+	      var zoom = map.getZoom() //pixels
+	      var size = map.getSize() //pixels
+	      var data = JSON.stringify([cen, bounds, size, zoom])
+	      map_manager.receive_data("init", data);
+	  
+
+      });
+  };
+</script>
